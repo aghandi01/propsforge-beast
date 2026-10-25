@@ -1,54 +1,52 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import os, httpx
+import os
 from datetime import datetime
+from app.core.orchestrator import BeastOrchestrator
 
-app = FastAPI(title="BEAST V3 Live")
+app = FastAPI(title="PropsForge BEAST V3 - 12 Agent Live", version="3.0-pro")
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+orch = BeastOrchestrator()
+
 @app.get("/")
 def root():
-    return {"beast":"online","docs":"/docs","health":"/health"}
+    return {"beast":"online","version":"12-agent live pro","docs":"/docs","health":"/health","live_status":"/api/v1/live-status","generate":"/api/v1/generate-slips-live"}
 
 @app.get("/health")
 def health():
-    return {"status":"beast_mode","live":True}
+    return {"status":"beast_mode","agents":12,"live":True,"time":datetime.utcnow().isoformat()}
 
 @app.get("/api/v1/live-status")
 async def live_status():
-    pp_count=0
-    try:
-        async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get("https://api.prizepicks.com/projections", params={"per_page":250,"single_stat":"true","league_id":7}, headers={"User-Agent":"Mozilla/5.0"})
-            if r.status_code==200:
-                pp_count=len(r.json().get("data",[]))
-    except: pass
-    return {"prizepicks_live":pp_count,"live":True}
+    result = await orch.run()
+    return {
+        "prizepicks_live": result["live_breakdown"]["prizepicks_live"],
+        "odds_api_live": result["live_breakdown"]["odds_api_live"],
+        "odds_key_configured": bool(os.getenv("ODDS_API_KEY")),
+        "balldontlie_enabled": bool(os.getenv("BALLDONTLIE_API_KEY")),
+        "agents": result["agents"],
+        "live": True
+    }
 
-@app.post("/api/v1/generate-slips")
 @app.post("/api/v1/generate-slips-live")
-async def gen(payload: dict = None):
-    lines=[]
-    try:
-        async with httpx.AsyncClient(timeout=20) as c:
-            r = await c.get("https://api.prizepicks.com/projections", params={"per_page":250,"single_stat":"true","league_id":7}, headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
-            data=r.json()
-            inc={i["id"]:i for i in data.get("included",[])}
-            for proj in data.get("data",[])[:100]:
-                try:
-                    pid=proj["relationships"]["new_player"]["data"]["id"]
-                    player=inc.get(pid)
-                    if not player: continue
-                    pa=player["attributes"]; aa=proj["attributes"]
-                    if aa.get("is_promo"): continue
-                    lines.append({"player":pa.get("name"),"team":pa.get("team"),"market":aa.get("stat_type"),"line":float(aa.get("line_score",0))})
-                except: continue
-    except Exception as e:
-        print(e)
-    slips=[]
-    for i in range(3):
-        picks=[{"player":l["player"],"pick":f"{l['market']} OVER {l['line']}","team":l["team"],"confidence":0.58,"edge":3.5} for l in lines[i*6:(i+1)*6]]
-        slips.append({"slip_id":f"BEAST-LIVE-{i+1}","picks":picks,"total_edge":21,"model_confidence":0.59})
-    return {"sport":"NBA","generated_at":datetime.utcnow().isoformat(),"live":True,"live_breakdown":{"prizepicks_live":len(lines)},"slips":slips}
+@app.post("/api/v1/generate-slips")
+async def generate(payload: dict = None):
+    payload = payload or {}
+    sport = payload.get("sport","NBA")
+    result = await orch.run(sport)
+    return {
+        "sport": sport,
+        "generated_at": datetime.utcnow().isoformat(),
+        "live": True,
+        "live_breakdown": result["live_breakdown"],
+        "agents_run": result["agents"],
+        "slips": result["slips"],
+        "message": "12-agent live beast - PrizePicks + FanDuel/DraftKings/Bet365 + Form + DvP"
+    }
+
+@app.get("/m")
+def mobile():
+    return {"open":"/docs for full UI - this beast is live 24/7 on Railway"}
