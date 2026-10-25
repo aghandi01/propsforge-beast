@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BEAST V3 Pro</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0b;color:#fff;font-family:-apple-system,sans-serif;min-height:100vh}
+.header{background:linear-gradient(135deg,#ff3b30,#ff6b30);padding:20px;padding-top:50px;position:sticky;top:0}
+.header h1{font-size:28px;font-weight:900}
+.status{display:flex;gap:10px;margin-top:15px}
+.status-card{background:rgba(0,0,0,0.2);border-radius:12px;padding:10px 14px;flex:1}
+.label{font-size:10px;opacity:0.7;text-transform:uppercase}
+.value{font-size:20px;font-weight:800;margin-top:2px}
+.container{padding:16px}
+.generate-btn{width:100%;background:#fff;color:#000;border:none;border-radius:16px;padding:18px;font-size:17px;font-weight:800;cursor:pointer}
+.agents{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
+.agent{background:#1c1c1e;border-radius:10px;padding:10px;text-align:center;font-size:11px}
+.slip{background:#1c1c1e;border-radius:20px;padding:16px;margin-bottom:16px;border:1px solid #2c2c2e}
+.pick{background:#2c2c2e;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between}
+</style></head><body>
+<div class="header"><h1>BEAST V3 PRO</h1><p>12-Agent Live - PrizePicks + FD/DK/Bet365</p>
+<div class="status"><div class="status-card"><div class="label">PrizePicks</div><div class="value" id="pp">--</div></div>
+<div class="status-card"><div class="label">Odds API</div><div class="value" id="odds">--</div></div>
+<div class="status-card"><div class="label">Agents</div><div class="value">12</div></div></div></div>
+<div class="container"><button class="generate-btn" id="genBtn" onclick="generate()">GENERATE 3x6 BEAST SLIPS</button>
+<div class="agents"><div class="agent">Market</div><div class="agent">Injury</div><div class="agent">Lineup</div>
+<div class="agent">Matchup</div><div class="agent">Form</div><div class="agent">History</div>
+<div class="agent">Context</div><div class="agent">Edge</div><div class="agent">Corr</div>
+<div class="agent">Risk</div><div class="agent">Slips</div><div class="agent">Valid</div></div>
+<div id="slips"></div></div>
+<script>
+async function loadStatus(){
+ try{
+  const r=await fetch('/api/v1/live-status'); const d=await r.json();
+  document.getElementById('pp').textContent=d.prizepicks_live||0;
+  document.getElementById('odds').textContent=d.odds_api_live||0;
+ }catch(e){}
+}
+async function generate(){
+ const btn=document.getElementById('genBtn'); const div=document.getElementById('slips');
+ btn.disabled=true; btn.textContent='BEAST RUNNING...';
+ div.innerHTML='<div style="padding:40px;text-align:center;opacity:0.6">Scanning live...</div>';
+ try{
+  const r=await fetch('/api/v1/generate-slips-live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sport:'NBA'})});
+  const data=await r.json();
+  let html='<div style="margin:16px 0;opacity:0.7;font-size:12px">LIVE: '+data.live_breakdown.prizepicks_live+' PrizePicks - '+new Date(data.generated_at).toLocaleTimeString()+'</div>';
+  data.slips.forEach(slip=>{
+    html+='<div class="slip"><div style="display:flex;justify-content:space-between;margin-bottom:12px"><div style="font-weight:800">'+slip.slip_id+'</div><div style="background:#00ff88;color:#000;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:800">+'+slip.total_edge.toFixed(1)+' edge</div></div>';
+    slip.picks.forEach(p=>{
+      html+='<div class="pick"><div><div style="font-weight:700">'+p.player+'</div><div style="font-size:12px;opacity:0.7">'+p.team+' - '+p.pick+'</div></div><div style="color:#00ff88;font-weight:700">+'+p.edge+'</div></div>';
+    });
+    html+='</div>';
+  });
+  div.innerHTML=html;
+ }catch(e){div.innerHTML='Error: '+e.message}
+ btn.disabled=false; btn.textContent='GENERATE 3x6 BEAST SLIPS';
+}
+loadStatus();
+</script></body></html>
