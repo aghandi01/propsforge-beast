@@ -1,0 +1,52 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>BEAST Real Accurate</title>
+<style>:root{--bg:#050a12;--surface:#0a1420;--surface-2:#0d1a2a;--border:#1a2a3e;--text:#e6edf5;--dim:#8b96a8;--accent:#22ff88;--red:#ff4d6a}body{background:var(--bg);color:var(--text);font-family:Inter,sans-serif}.pill{padding:5px 12px;border-radius:9999px;border:1px solid var(--border);cursor:pointer;font-size:11px}.pill.active{background:#fff;color:#000}.pill.inactive{background:var(--surface-2);color:var(--dim)}.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:12px}.live-dot{height:7px;width:7px;border-radius:50%;background:var(--red);display:inline-block;animation:pulse 1.2s infinite}@keyframes pulse{0%{opacity:1}50%{opacity:0.4}100%{opacity:1}}.game-card{border-radius:14px;padding:10px;background:var(--surface-2);border:1px solid var(--border);margin-bottom:8px}.game-card.live{border-color:var(--red)}</style></head><body>
+<header style="position:sticky;top:0;background:rgba(5,10,18,0.94);padding:8px 14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border)">
+<div style="display:flex;gap:10px;align-items:center"><div style="height:30px;width:30px;border-radius:9px;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-weight:900">PF</div><div><div style="font-weight:800;font-size:13px">BEAST • REAL ESPN • Accurate</div><div style="font-size:9px;color:var(--dim)">ESPN API • No fake games • Denver only if actually playing</div></div></div>
+<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><div style="display:flex;gap:3px;background:var(--surface-2);border:1px solid var(--border);border-radius:9999px;padding:3px"><button onclick="setSport('NBA')" id="pill-NBA" class="pill active">NBA</button><button onclick="setSport('NFL')" id="pill-NFL" class="pill inactive">NFL</button><button onclick="setSport('MLB')" id="pill-MLB" class="pill inactive">MLB</button><button onclick="setSport('NHL')" id="pill-NHL" class="pill inactive">NHL</button><button onclick="setSport('CFB')" id="pill-CFB" class="pill inactive">CFB</button><button onclick="setSport('WNBA')" id="pill-WNBA" class="pill inactive">WNBA</button></div><div style="display:flex;gap:2px;background:var(--surface-2);border:1px solid var(--border);border-radius:9999px;padding:2px"><button onclick="setTimeFilter('today')" id="time-today" class="pill active" style="font-size:10px">TODAY</button><button onclick="setTimeFilter('live')" id="time-live" class="pill inactive" style="font-size:10px"><span class="live-dot"></span> LIVE ONLY</button></div><button onclick="generate()" id="genBtn" style="background:var(--accent);color:#000;border:none;border-radius:9999px;height:32px;padding:0 16px;font-weight:800;font-size:11px;cursor:pointer">GENERATE</button></div>
+</header>
+<main style="max-width:1600px;margin:0 auto;padding:10px;display:flex;gap:12px;flex-wrap:wrap">
+<div style="flex:1;min-width:340px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;color:var(--dim)">🔴 REAL LIVE GAMES - ESPN Accurate</span><button onclick="refreshLive()" style="font-size:9px;padding:2px 6px;border-radius:9999px;background:var(--surface-2);border:1px solid var(--border);color:var(--dim);cursor:pointer">REFRESH</button></div><div id="liveTracker"><div style="padding:20px;text-align:center;color:var(--dim);font-size:11px">Loading REAL games from ESPN...</div></div></div>
+<div style="flex:1.2;min-width:400px"><div style="font-size:11px;color:var(--dim);margin-bottom:8px">SLIPS • <span id="outputSport">NBA TODAY</span></div><div id="slipOutput" class="card" style="border-radius:18px;padding:0"><div style="padding:20px;text-align:center;color:var(--dim);font-size:11px">Click GENERATE</div></div></div>
+</main>
+<script>
+let cur='NBA', timeFilter='today';
+function setSport(s){cur=s;['NBA','NFL','MLB','NHL','CFB','WNBA'].forEach(x=>{document.getElementById('pill-'+x).className=x===s?'pill active':'pill inactive'});refreshLive();}
+function setTimeFilter(f){timeFilter=f;document.getElementById('time-today').className=f==='today'?'pill active':'pill inactive';document.getElementById('time-live').className=f==='live'?'pill active':'pill inactive';refreshLive();}
+async function refreshLive(){
+  const el=document.getElementById('liveTracker');
+  el.innerHTML=`<div style="padding:20px;text-align:center;color:var(--dim);font-size:11px">Fetching REAL ${cur} games from ESPN for today...</div>`;
+  try{
+    const r=await fetch(`/api/v1/games/live-props?sport=${cur}&time_filter=${timeFilter}`);
+    const d=await r.json();
+    const games=d.games||[];
+    if(!games.length){el.innerHTML=`<div style="padding:30px;text-align:center"><div style="font-size:14px;font-weight:700">✅ No ${cur} games today</div><div style="font-size:11px;color:var(--dim);margin-top:8px">Today: ${d.today||''}<br>${d.note||'Accurate - ESPN shows no games'}<br><br>Denver Nuggets not playing today = correctly NOT shown<br>Only real games from ESPN API</div></div>`;return;}
+    let html=`<div style="font-size:10px;color:var(--dim);margin-bottom:8px">Source: ESPN • ${d.real_games_today} real games today • ${d.live_count} live now • ${d.today}</div>`;
+    games.forEach(g=>{
+      html+=`<div class="game-card ${g.is_live?'live':''}"><div style="display:flex;justify-content:space-between"><div><div style="font-weight:700;font-size:12px">${g.away} @ ${g.home} ${g.is_live?'<span class="live-dot"></span> LIVE':''}</div><div style="font-size:10px;color:var(--dim)">${g.status} • ${g.game_date} ${g.home_score||g.away_score?`• ${g.away_score}-${g.home_score}`:''}</div></div><div style="font-size:10px;color:var(--dim)">${g.league}</div></div>`;
+      (g.live_props||[]).forEach(p=>{
+        const pct=p.live_stat?Math.min(100,Math.round((p.live_stat/p.line)*100)):0;
+        const hitting=p.live_stat&&p.live_stat>=p.line;
+        html+=`<div style="margin-top:6px;padding:6px;border-radius:8px;background:rgba(10,20,32,0.8);border:1px solid ${hitting?'var(--accent)':'var(--border)'};display:flex;justify-content:space-between"><div><div style="font-size:11px;font-weight:700">${p.player} • ${p.market} OVER ${p.line}</div><div style="font-size:10px;color:${hitting?'var(--accent)':'var(--dim)'}">${p.live_stat!==null&&p.live_stat!==undefined?`Live: ${p.live_stat} ${hitting?'✅ HITTING':'❌ Need '+(p.line-p.live_stat).toFixed(1)+' more'}`:'Today game'}</div></div><div style="font-size:11px;font-weight:800;color:${hitting?'var(--accent)':'var(--dim)'}">${pct?pct+'%':''}</div></div>`;
+      });
+      html+=`</div>`;
+    });
+    el.innerHTML=html;
+  }catch(e){el.innerHTML=`<div style="padding:20px;color:var(--red);font-size:11px">Error: ${e.message}</div>`;}
+}
+async function generate(){
+  const btn=document.getElementById('genBtn');btn.disabled=true;btn.textContent='...';
+  document.getElementById('slipOutput').innerHTML=`<div style="padding:20px;text-align:center">Generating ${cur} ${timeFilter}...</div>`;
+  try{
+    const r=await fetch(`/api/v1/generate-slips-live?sport=${cur}&time_filter=${timeFilter}`,{method:'POST'});
+    const d=await r.json();
+    const slips=d.slips||[];
+    if(!slips.length){document.getElementById('slipOutput').innerHTML=`<div style="padding:20px;text-align:center;font-size:11px">No ${cur} games ${timeFilter} today<br>ESPN shows 0 real games - accurate<br>Denver not playing = not shown<br>Today: ${d.game_date}</div>`;return;}
+    let html=`<div style="padding:10px 12px;background:#0d1a2a;border-bottom:1px solid var(--border);font-size:11px;font-weight:700">BEAST ${cur} ${timeFilter.toUpperCase()} • ${d.game_date} • ${d.live_breakdown.real_games_today} real ESPN games</div><table style="width:100%;border-collapse:collapse"><thead><tr style="font-size:9px;color:var(--dim)"><th style="text-align:left;padding:6px 10px">Player</th><th>Market</th><th>Line</th><th>Pick</th><th>Live</th></tr></thead><tbody>`;
+    slips[0].picks.forEach(p=>{html+=`<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px"><div style="font-weight:600;font-size:11px">${p.player}</div><div style="font-size:9px;color:var(--dim)">${p.team} ${p.game_date}</div></td><td style="padding:6px;font-size:10px">${p.market}</td><td style="padding:6px">${p.line}</td><td style="padding:6px"><span style="font-size:9px;padding:2px 6px;border-radius:9999px;background:var(--accent);color:#000">${p.pick}</span></td><td style="padding:6px;font-size:10px">${p.live_stat!==null&&p.live_stat!==undefined?p.live_stat+' '+(p.live_stat>=p.line?'✅':'❌'):'-'}</td></tr>`});
+    html+=`</tbody></table>`;
+    document.getElementById('slipOutput').innerHTML=html;
+  }catch(e){document.getElementById('slipOutput').innerHTML='Error '+e.message;}
+  btn.disabled=false;btn.textContent='GENERATE';
+}
+refreshLive();
+</script></body></html>
